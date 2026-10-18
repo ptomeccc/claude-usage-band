@@ -1,9 +1,9 @@
 # usage-band
 
-A Claude Code mod that shows your **5-hour session** and **7-day weekly** rate-limit usage in a band above the prompt, with an animated pixel Claude mascot.
+A Claude Code mod that shows the conversation's **context** use plus your **5-hour session** and **7-day weekly** rate-limit usage in a band above the prompt, each with a small progress ring, and an animated pixel Claude mascot.
 
 - It remembers the last known values across sessions.
-- The animation shows only in the Claude Code **desktop app's Code tab** (not Chat/Cowork). In the terminal you get text only.
+- The rings and the animation show only in the Claude Code **desktop app's Code tab** (not Chat/Cowork). In the terminal you get text only.
 
 ## Install
 

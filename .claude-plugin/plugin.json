@@ -1,1 +1,1 @@
-{ "name": "usage-band", "version": "0.1.0", "description": "Shows session (5h) and weekly (7d) usage above the prompt", "author": { "name": "ptomeccc" }, "types": "./types/index.d.ts" }
+{ "name": "usage-band", "version": "0.2.0", "description": "Shows session (5h) and weekly (7d) usage above the prompt", "author": { "name": "ptomeccc" }, "types": "./types/index.d.ts" }

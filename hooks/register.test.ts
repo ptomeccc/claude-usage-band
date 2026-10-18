@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { formatLimit, fromStore, MASCOT } from './register'
+import { formatLimit, fromStore, MASCOT, pie } from './register'
 
 test('formats a limit with label, rounded percent and reset time', async () => {
   const now = Date.parse('2026-01-05T10:00:00')
@@ -29,4 +29,12 @@ test('saved limits: reset windows read 0%, junk is dropped', async () => {
     { kind: 'seven_day', percentUsed: 41, resetsAt: '2026-01-12T09:00:00' },
   ])
   expect(fromStore(undefined, now)).toEqual([])
+})
+
+test('pie fills its arc in proportion and clamps', async () => {
+  const arc = (svg: string) => Number(svg.match(/stroke-dasharray="([\d.]+)/)?.[1])
+  const full = 2 * Math.PI * 5
+  expect(arc(pie(0))).toBe(0)
+  expect(Math.abs(arc(pie(50)) - full / 2) < 0.01).toBe(true)
+  expect(arc(pie(150))).toBe(arc(pie(100)))
 })

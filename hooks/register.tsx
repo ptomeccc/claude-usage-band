@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register, SessionRateLimit } from 'claude-code'
 
 const limits = atom({ plugin: 'usage-band', key: 'limits' } as const, [] as SessionRateLimit[])
+const context = atom({ plugin: 'usage-band', key: 'context' } as const, null as number | null)
 
 const LABELS: Record<string, string> = { five_hour: 'Session (5h)', seven_day: 'Weekly' }
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -13,6 +14,16 @@ export function formatReset(iso: string | undefined, now: number): string {
   if (Number.isNaN(d.getTime())) return ''
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
   return d.getTime() - now < 86_400_000 ? time : `${DAYS[d.getDay()]} ${time}`
+}
+
+// Small ring like the desktop's usage circle: a faint track and an arc filled to `percent`.
+export function pie(percent: number): string {
+  const c = 2 * Math.PI * 5
+  const filled = (Math.min(Math.max(percent, 0), 100) / 100) * c
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14">` +
+    `<circle cx="7" cy="7" r="5" fill="none" stroke="#8a8a8a" stroke-opacity=".35" stroke-width="2.5"/>` +
+    `<circle cx="7" cy="7" r="5" fill="none" stroke="#4a90e2" stroke-width="2.5" ` +
+    `stroke-dasharray="${filled.toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 7 7)"/></svg>`
 }
 
 export function formatLimit(l: SessionRateLimit, now: number): string {
@@ -98,7 +109,8 @@ export function fromStore(raw: unknown, now: number): SessionRateLimit[] {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
-    const { rateLimits } = await $.session.usage()
+    const { rateLimits, context: ctx } = await $.session.usage()
+    await update($, context, () => ctx.percent ?? null)
     if (rateLimits.length > 0) {
       await update($, limits, () => rateLimits)
       await $.store.set('limits', rateLimits)
@@ -110,6 +122,9 @@ export const register: Register = on => {
   })
 
   on('session.measure', async ($, e, next) => {
+    if (e.changed.includes('context')) {
+      await update($, context, () => e.context.percent ?? null)
+    }
     if (e.changed.includes('rateLimits') && e.rateLimits.length > 0) {
       await update($, limits, () => e.rateLimits)
       await $.store.set('limits', e.rateLimits)
@@ -119,16 +134,28 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const all = await read($, limits)
-    if (e.props.hasSurvey || all.length === 0) return next(e)
+    const ctx = await read($, context)
+    if (e.props.hasSurvey || (all.length === 0 && ctx === null)) return next(e)
 
     const els = $.ui.resolve(e)
     const { Box, Text } = els
     const now = await $.clock.now()
+    const items = [
+      ...(ctx === null ? [] : [{ key: 'context', percent: ctx, text: `Context: ${ctx}%` }]),
+      ...all.map(l => ({ key: l.kind, percent: l.percentUsed, text: formatLimit(l, now) })),
+    ]
 
     return (
       <Box flexDirection="row" justifyContent="space-between" alignItems="center">
-        <Text dimColor>{all.map(l => formatLimit(l, now)).join('   |   ')}</Text>
-        {/* the terminal has no Svg; it shows the text alone */}
+        <Box flexDirection="row" alignItems="center" gap={3}>
+          {items.map(i => (
+            <Box key={i.key} flexDirection="row" alignItems="center" gap={1}>
+              {/* the terminal has no Svg; it shows the text alone */}
+              {'Svg' in els && <els.Svg source={pie(i.percent)} alt={`${Math.round(i.percent)}%`} width={14} height={14} />}
+              <Text dimColor>{i.text}</Text>
+            </Box>
+          ))}
+        </Box>
         {'Svg' in els && <els.Svg source={MASCOT} alt="Claude" width={30} height={24} isInteractive />}
       </Box>
     )
